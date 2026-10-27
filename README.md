@@ -79,7 +79,7 @@ netlify deploy --prod --dir .
 
 ### Vercel
 
-The included `vercel.json` configures a static deployment.
+The included `vercel.json` configures a static deployment with no framework preset. Keep **Framework Preset** set to **Other**; do not deploy the local `preview.js` file as a Node backend.
 
 ```bash
 vercel --prod
@@ -114,7 +114,7 @@ The server serves the console, static assets, and extensionless route fallbacks 
 │   └── app.js                 Routing, batch execution, export, toasts, shell behavior
 ├── assets/favicon.svg         Product mark
 ├── tests.js                   Node algorithm tests
-├── server.js                  Dependency-free static server
+├── preview.js                 Dependency-free local preview server
 ├── netlify.toml               Netlify deployment configuration
 ├── vercel.json                Vercel deployment configuration
 └── robots.txt

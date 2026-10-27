@@ -4,8 +4,8 @@
   "private": true,
   "description": "Live transaction orchestration console for scheduling, queue synchronization, allocation safety, and memory management.",
   "scripts": {
-    "start": "node server.js",
-    "serve": "node server.js",
+    "start": "node preview.js",
+    "serve": "node preview.js",
     "test": "node tests.js"
   },
   "engines": {

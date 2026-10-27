@@ -1,0 +1,6 @@
+.idea/
+.github/
+tests.js
+preview.js
+README.md
+netlify.toml
