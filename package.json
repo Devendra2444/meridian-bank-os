@@ -1,0 +1,14 @@
+{
+  "name": "meridian-core-ops",
+  "version": "2.4.1",
+  "private": true,
+  "description": "Live transaction orchestration console for scheduling, queue synchronization, allocation safety, and memory management.",
+  "scripts": {
+    "start": "node server.js",
+    "serve": "node server.js",
+    "test": "node tests.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

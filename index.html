@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Command Center · Meridian Core Ops</title>
+  <meta name="description" content="Meridian Core Ops is a live transaction orchestration console for scheduling, request flow, resource safety, and memory allocation.">
+  <meta name="theme-color" content="#060a12">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="Meridian Core Ops">
+  <meta property="og:description" content="Live transaction orchestration, allocation safety, and capacity control for core banking.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="views.css">
+  <link rel="stylesheet" href="responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#view">Skip to content</a>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img">
+            <defs>
+              <linearGradient id="brand-gradient" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#34D399"/><stop offset="1" stop-color="#38BDF8"/>
+              </linearGradient>
+            </defs>
+            <path d="M16 46V20l16 13 16-13v26" fill="none" stroke="url(#brand-gradient)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="48" cy="16" r="4" fill="#34D399"/>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>MERIDIAN</strong>
+          <span>CORE OPERATIONS</span>
+        </span>
+        <span class="brand-version">2.4</span>
+      </div>
+
+      <nav class="nav">
+        <p class="nav-label">Operations</p>
+        <a class="nav-item" href="#/overview" data-route="overview">
+          <span class="nav-icon" data-icon="grid"></span>
+          <span class="nav-text">Command Center</span>
+        </a>
+        <a class="nav-item" href="#/intake" data-route="intake">
+          <span class="nav-icon" data-icon="inbox"></span>
+          <span class="nav-text">Transaction Intake</span>
+          <span class="nav-badge" id="nav-count">0</span>
+        </a>
+
+        <p class="nav-label">Control planes</p>
+        <a class="nav-item" href="#/scheduler" data-route="scheduler">
+          <span class="nav-icon" data-icon="cpu"></span>
+          <span class="nav-text">CPU Scheduler</span>
+        </a>
+        <a class="nav-item" href="#/queue" data-route="queue">
+          <span class="nav-icon" data-icon="layers"></span>
+          <span class="nav-text">Request Queue</span>
+          <span class="nav-badge nav-badge--live" id="nav-queue">0</span>
+        </a>
+        <a class="nav-item" href="#/resources" data-route="resources">
+          <span class="nav-icon" data-icon="shield"></span>
+          <span class="nav-text">Resource Guard</span>
+          <span class="nav-status" id="nav-guard" title="Safety state"></span>
+        </a>
+        <a class="nav-item" href="#/memory" data-route="memory">
+          <span class="nav-icon" data-icon="chip"></span>
+          <span class="nav-text">Memory Manager</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="control-status">
+          <span class="status-orb" aria-hidden="true"></span>
+          <div class="control-copy">
+            <b>Control plane</b>
+            <span>All regions nominal</span>
+          </div>
+          <span class="control-sla">99.99%</span>
+        </div>
+        <div class="user-card">
+          <span class="user-avatar">OP</span>
+          <span class="user-copy">
+            <b>Core Operations</b>
+            <span>Production · US-East</span>
+          </span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="nav-backdrop" id="nav-backdrop" aria-hidden="true"></div>
+
+    <div class="workspace">
+      <header class="topbar">
+        <button class="icon-button menu-button" id="menu-toggle" type="button" aria-label="Open navigation" aria-controls="sidebar">
+          <span data-icon="menu"></span>
+        </button>
+        <div class="crumbs" aria-label="Breadcrumb">
+          <span class="crumb-root">Meridian Core</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb-current" id="crumb-current">Command Center</span>
+        </div>
+        <div class="topbar-actions">
+          <span class="environment"><span class="environment-dot"></span>Production</span>
+          <span class="save-indicator" id="save-indicator"><span data-icon="cloud"></span>Saved</span>
+          <span class="clock mono" id="clock">--:--:--</span>
+          <button class="btn btn-ghost btn-icon" id="export-btn" type="button" aria-label="Export batch report" title="Export batch report">
+            <span data-icon="download"></span>
+          </button>
+          <button class="btn btn-primary" id="run-batch" type="button">
+            <span class="btn-icon" data-icon="play"></span>
+            <span class="btn-label">Execute batch</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="view" id="view" tabindex="-1"></main>
+
+      <footer class="app-footer">
+        <span>Meridian Core Ops · Simulation environment</span>
+        <span class="mono">build 2.4.1</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toast-stack" role="status" aria-live="polite"></div>
+
+  <script src="js/algorithms.js" defer></script>
+  <script src="js/icons.js" defer></script>
+  <script src="js/state.js" defer></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/views.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
