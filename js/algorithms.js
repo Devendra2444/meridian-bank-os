@@ -279,10 +279,14 @@
     const total = start;
     const placements = [];
     for (const p of procs) {
+      const candidates = segs.map(s => ({
+        label: s.label, size: s.size, start: s.start, free: s.pid === null,
+        fits: s.pid === null && s.size >= p.size, holder: s.pid
+      }));
       const cand = [];
       segs.forEach((s, i) => { if (s.pid === null && s.size >= p.size) cand.push({ s, i }); });
       if (!cand.length) {
-        placements.push({ pid: p.id, size: p.size, ok: false, block: null, blockSize: 0, start: null, waste: 0 });
+        placements.push({ pid: p.id, size: p.size, ok: false, block: null, blockSize: 0, start: null, waste: 0, candidates });
         continue;
       }
       let pick = cand[0];
@@ -293,7 +297,7 @@
         pick.s.size = p.size;
       }
       pick.s.pid = p.id; pick.s.used = p.size;
-      placements.push({ pid: p.id, size: p.size, ok: true, block: pick.s.label, blockSize: pick.s.size, start: pick.s.start, waste: pick.s.size - p.size });
+      placements.push({ pid: p.id, size: p.size, ok: true, block: pick.s.label, blockSize: pick.s.size, start: pick.s.start, waste: pick.s.size - p.size, candidates });
     }
     const allocated = segs.filter(s => s.pid !== null);
     const holes = segs.filter(s => s.pid === null);

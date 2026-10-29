@@ -751,3 +751,236 @@
     color: #111;
   }
 }
+
+@media (max-width: 1120px) {
+  .memory-inspector-panel .mem-inspect-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .mem-block-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .memory-rack {
+    height: 148px;
+  }
+
+  .trace-row {
+    grid-template-columns: 24px minmax(135px, 0.8fr) minmax(280px, 2fr) minmax(135px, 0.8fr);
+    gap: 9px;
+  }
+}
+
+@media (max-width: 760px) {
+  .mem-block-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .memory-rack {
+    height: 136px;
+  }
+
+  .memory-inspector-panel .mem-inspect-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trace-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 6px 8px;
+    padding: 12px 0;
+  }
+
+  .trace-index {
+    grid-row: 1;
+  }
+
+  .trace-txn {
+    grid-column: 2;
+  }
+
+  .trace-scan {
+    grid-column: 2;
+  }
+
+  .trace-out {
+    grid-column: 2;
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    text-align: left;
+  }
+
+  .trace-out b,
+  .trace-out small {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .strategy-rule {
+    white-space: normal;
+  }
+
+  .memory-map-foot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mem-detail {
+    display: inline;
+  }
+
+  .mem-slack {
+    display: flex;
+  }
+
+  .mem-used {
+    padding: 5px 4px 6px;
+  }
+
+  .mem-label {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 600px) {
+  .memory-rack {
+    height: 124px;
+  }
+
+  .mem-axis {
+    height: 24px;
+  }
+
+  .mem-axis > span,
+  .mem-axis-end {
+    font-size: 6px;
+  }
+
+  .mem-seg-head {
+    height: 19px;
+    font-size: 6px;
+  }
+
+  .mem-seg-head b {
+    font-size: 6.5px;
+  }
+
+  .mem-label {
+    font-size: 8px;
+  }
+
+  .mem-detail {
+    font-size: 6.5px;
+  }
+
+  .mem-block-grid {
+    gap: 6px;
+  }
+
+  .mem-block-card {
+    padding: 8px;
+  }
+
+  .mem-block-foot {
+    font-size: 6px;
+  }
+
+  .mem-inspect-metrics {
+    gap: 4px;
+  }
+
+  .mem-inspect-metrics > span {
+    padding: 5px 6px;
+  }
+
+  .mem-inspect-rule {
+    font-size: 7.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mem-block-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .memory-rack {
+    height: 116px;
+  }
+
+  .mem-slack {
+    display: flex;
+    padding-bottom: 4px;
+    font-size: 6px;
+  }
+
+  .mem-label {
+    font-size: 8px;
+  }
+
+  .mem-block-card {
+    gap: 4px;
+    padding: 10px;
+  }
+
+  .mem-block-top b {
+    font-size: 10px;
+  }
+
+  .mem-block-owner {
+    font-size: 9px;
+  }
+
+  .mem-block-range,
+  .mem-block-foot {
+    font-size: 7px;
+  }
+
+  .mem-inspect-title b {
+    font-size: 10px;
+  }
+
+  .mem-address-pair b {
+    font-size: 8.5px;
+  }
+
+  .trace-chip {
+    padding: 3px 5px;
+    font-size: 7px;
+  }
+
+  .trace-chip i {
+    font-size: 6px;
+  }
+
+  .trace-txn b {
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 900px) {
+  .mem-block-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .mem-block-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .mem-block-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .mem-axis > span,
+  .mem-axis-end {
+    font-size: 6.5px;
+  }
+}

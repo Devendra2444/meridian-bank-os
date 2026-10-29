@@ -1118,14 +1118,29 @@
 
   /* ------------------------------------------------------------------ memory manager */
 
+  let memorySelection = null;
+
   views.memory = function (root) {
     const state = Store.state;
     const a = NB.analysis();
     const mem = a.mem;
     const modeLabel = state.memory.mode === 'fixed' ? 'Fixed partitions' : 'Dynamic partitions';
     const placed = mem.placements.filter(p => p.ok).length;
-    const largestSlack = mem.largestHole;
     const strategyCards = a.memAll.map(result => strategyCardHTML(result, a)).join('');
+    const txnMap = {};
+    a.txns.forEach(txn => { txnMap[txn.id] = txn; });
+
+    if (!memorySelection || !txnMap[memorySelection]) {
+      const first = mem.placements.find(p => p.ok) || mem.placements[0];
+      memorySelection = first ? first.pid : null;
+    }
+    const focusPlacement = mem.placements.find(p => p.pid === memorySelection) || mem.placements[0] || null;
+    const focusPid = focusPlacement ? focusPlacement.pid : null;
+    if (focusPid) memorySelection = focusPid;
+
+    const modeNote = state.memory.mode === 'fixed'
+      ? `<b>Fixed partitions</b> keep unused bytes inside each block as internal slack. <span>${U.num(mem.internal)} KB is reserved and cannot serve another request.</span>`
+      : `<b>Dynamic partitions</b> cut each block to the request size and return the remainder as free space. <span>${U.num(mem.totalFree)} KB is free across ${mem.holes} segment${mem.holes === 1 ? '' : 's'}.</span>`;
 
     const kpis = [
       {
@@ -1135,21 +1150,21 @@
         badge: badge(mem.unallocated.length ? 'Constrained' : 'Mapped', mem.unallocated.length ? 'warn' : 'good', true)
       },
       {
-        icon: 'layers', tone: 'amber', label: 'Reserved slack',
+        icon: 'layers', tone: 'amber', label: 'Internal slack',
         value: `${U.num(mem.internal)}<span class="kpi-unit">KB</span>`,
-        foot: state.memory.mode === 'fixed' ? 'Reserved inside allocated partitions' : 'No internal slack in dynamic mode',
-        badge: badge(state.memory.mode === 'fixed' ? 'Internal' : 'Dynamic', 'neutral')
+        foot: state.memory.mode === 'fixed' ? 'Unused capacity inside allocated blocks' : 'Dynamic blocks have no internal slack',
+        badge: badge(state.memory.mode === 'fixed' ? 'Reserved' : 'None', 'neutral')
       },
       {
         icon: 'scan', tone: 'sky', label: 'Free capacity',
         value: `${U.num(mem.totalFree)}<span class="kpi-unit">KB</span>`,
-        foot: mem.externalFrag ? 'External fragmentation detected' : `${mem.holes} free segments · largest ${U.num(largestSlack)} KB`,
+        foot: mem.totalFree ? `${mem.holes} free segment${mem.holes === 1 ? '' : 's'} · largest ${U.num(mem.largestHole)} KB` : 'No free segments in the current map',
         badge: badge(mem.externalFrag ? 'Fragmented' : 'Available', mem.externalFrag ? 'warn' : 'good', true)
       },
       {
-        icon: 'checkCircle', tone: 'emerald', label: 'Placement',
+        icon: 'checkCircle', tone: 'emerald', label: 'Mapped records',
         value: `${placed}<span class="kpi-unit">/ ${a.txns.length}</span>`,
-        foot: mem.unallocated.length ? `${mem.unallocated.join(', ')} awaiting memory` : 'All records mapped',
+        foot: mem.unallocated.length ? `${mem.unallocated.join(', ')} awaiting memory` : 'All records mapped to physical memory',
         badge: badge(mem.unallocated.length ? mem.unallocated.length + ' pending' : 'Complete', mem.unallocated.length ? 'warn' : 'good', true)
       }
     ];
@@ -1169,6 +1184,7 @@
         <button class="segment ${state.memory.mode === 'dynamic' ? 'is-active' : ''}" type="button" data-mode="dynamic">Dynamic</button>
       </div>
       <span class="config-meta">${state.memory.blocks.length} partitions · ${U.num(mem.total)} KB</span>
+      <div class="memory-mode-note">${icon('info', 14)}<p>${modeNote}</p></div>
     </div>
 
     <div class="kpi-grid">
@@ -1182,34 +1198,38 @@
     <div class="strategy-grid">${strategyCards}</div>
 
     <div class="memory-grid">
-      <article class="panel span-7">
-        ${cardHead('Address space', `${strategyLabel(state.memory.strategy)} · ${modeLabel}`, `${badge(mem.externalFrag ? 'External fragmentation' : 'Contiguous map', mem.externalFrag ? 'warn' : 'good', true)}`)}
-        ${memoryRackHTML(mem)}
-        <div class="memory-legend"><span><i class="legend-used"></i>Allocated</span><span><i class="legend-slack"></i>Reserved slack</span><span><i class="legend-free"></i>Free segment</span></div>
-      </article>
-      <aside class="panel span-5">
-        ${cardHead('Placement ledger', `${placed}/${a.txns.length} records mapped`, `<span class="table-hint">Scroll table ${icon('arrowRight', 11)}</span>${badge('Offset · KB', 'neutral')}`)}
-        <div class="table-wrap">
-          <table class="data-table placement-table">
-            <thead><tr><th>Transaction</th><th>Request</th><th>Segment</th><th>Offset</th><th>Slack</th></tr></thead>
-            <tbody>${mem.placements.map(p => {
-              const txn = a.txns.find(t => t.id === p.pid);
-              return `<tr class="${p.ok ? '' : 'row-warning'}">
-                <td>${txnCell(txn)}</td>
-                <td class="mono">${U.num(p.size)}K</td>
-                <td>${p.ok ? `<span class="mono">${p.block}</span>` : badge('Waiting', 'warn', true)}</td>
-                <td class="mono">${p.ok ? p.start + 'K' : '—'}</td>
-                <td class="mono">${p.ok ? U.num(p.waste) + 'K' : '—'}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table>
+      <article class="panel span-8 memory-map-panel">
+        ${cardHead('Memory map', `${strategyLabel(state.memory.strategy)} · ${modeLabel} · addresses in KB`, badge(`${placed}/${a.txns.length} mapped`, placed === a.txns.length ? 'good' : 'warn', true))}
+        ${memoryAxisHTML(mem)}
+        ${memoryRackHTML(mem, focusPid)}
+        <div class="memory-legend"><span><i class="legend-used"></i>Request bytes</span><span><i class="legend-slack"></i>Internal slack</span><span><i class="legend-free"></i>Free block</span></div>
+        <div class="mem-block-grid">${mem.segs.map(seg => memoryBlockHTML(seg, focusPid, txnMap, state.memory.mode)).join('')}</div>
+        <div class="memory-map-foot">
+          <span>${icon('info', 12)} Select a block or transaction to inspect it.</span>
+          <span class="mono">${U.num(mem.usedMem)}K used · ${U.num(mem.internal)}K slack · ${U.num(mem.totalFree)}K free</span>
         </div>
-        <div class="placement-foot">
-          <span>${mem.unallocated.length ? `<b class="warn-text">${mem.unallocated.join(', ')}</b> cannot be mapped.` : 'All records fit the current partition map.'}</span>
-          <span class="mono">${U.num(mem.totalFree)}K free</span>
+      </article>
+
+      <aside class="panel span-4 memory-inspector-panel">
+        ${cardHead('Allocation inspector', 'Physical placement for the selected transaction', badge(mem.externalFrag ? 'Fragmentation' : 'Contiguous', mem.externalFrag ? 'warn' : 'good'))}
+        <div class="mem-tabs" role="group" aria-label="Inspect transaction">
+          ${a.txns.map(txn => {
+            const p = mem.placements.find(item => item.pid === txn.id);
+            return `<button class="mem-tab ${focusPid === txn.id ? 'is-active' : ''} ${p && p.ok ? '' : 'is-waiting'}" type="button" data-mem-focus="${txn.id}" aria-pressed="${focusPid === txn.id}" style="--mem:${U.colorFor(txn.id)}">
+              <i></i><b>${txn.id}</b><span>${U.num(txn.size)}K</span>
+            </button>`;
+          }).join('')}
+        </div>
+        <div class="mem-inspect-stack">
+          ${a.txns.map(txn => memoryInspectorHTML(mem, mem.placements.find(item => item.pid === txn.id), txn, focusPid, state.memory.strategy, state.memory.mode)).join('')}
         </div>
       </aside>
-    </div>`;
+    </div>
+
+    <article class="panel memory-trace-panel">
+      ${cardHead('Allocation decisions', `${strategyLabel(state.memory.strategy)} evaluates free blocks in intake order`, `${badge(memoryRule(state.memory.strategy), 'neutral')}${badge(mem.unallocated.length ? `${mem.unallocated.length} waiting` : 'All placed', mem.unallocated.length ? 'warn' : 'good', true)}`)}
+      <div class="trace-list">${mem.placements.map((p, index) => memoryTraceHTML(p, index, txnMap, state.memory.mode, state.memory.strategy)).join('')}</div>
+    </article>`;
 
     root.querySelector('#mem-apply').addEventListener('click', () => {
       const raw = root.querySelector('#mem-blocks').value;
@@ -1245,7 +1265,138 @@
         views.memory(root);
       });
     });
+
+    root.querySelectorAll('[data-mem-focus]').forEach(button => {
+      button.addEventListener('click', () => {
+        const pid = button.dataset.memFocus;
+        memorySelection = pid;
+        root.querySelectorAll('[data-mem-focus]').forEach(target => {
+          const active = target.dataset.memFocus === pid;
+          target.classList.toggle('is-focused', active);
+          target.setAttribute('aria-pressed', String(active));
+        });
+        root.querySelectorAll('.mem-tab').forEach(tab => {
+          tab.classList.toggle('is-active', tab.dataset.memFocus === pid);
+        });
+        root.querySelectorAll('[data-mem-detail]').forEach(detail => {
+          detail.hidden = detail.dataset.memDetail !== pid;
+        });
+      });
+    });
   };
+
+  function memoryRule(strategy) {
+    return {
+      first: 'First block that fits',
+      best: 'Smallest block that fits',
+      worst: 'Largest block that fits'
+    }[strategy] || strategy;
+  }
+
+  function memoryBlockHTML(seg, focusPid, txnMap, mode) {
+    const start = U.num(seg.start);
+    const end = U.num(seg.start + seg.size);
+    if (seg.pid === null) {
+      return `<div class="mem-block-card is-free">
+        <span class="mem-block-top"><b>${seg.label}</b><span>${U.num(seg.size)} KB</span></span>
+        <span class="mem-block-range">${start}–${end} KB</span>
+        <span class="mem-block-owner">Free block</span>
+        <span class="mem-block-track"><i class="is-slack" style="width:100%"></i></span>
+        <span class="mem-block-foot"><span>Available</span><span>${U.num(seg.size)} KB</span></span>
+      </div>`;
+    }
+
+    const txn = txnMap[seg.pid] || { id: seg.pid, name: seg.pid };
+    const slack = seg.size - seg.used;
+    const color = U.colorFor(seg.pid);
+    const selected = focusPid === seg.pid;
+    return `<button class="mem-block-card ${selected ? 'is-focused' : ''}" type="button" data-mem-focus="${seg.pid}" aria-pressed="${selected}">
+      <span class="mem-block-top"><b>${seg.label}</b><span>${U.num(seg.size)} KB</span></span>
+      <span class="mem-block-range">${start}–${end} KB</span>
+      <span class="mem-block-owner"><i style="--mem:${color}"></i>${seg.pid} · ${U.esc(txn.name)}</span>
+      <span class="mem-block-track"><i style="width:${seg.size ? (seg.used / seg.size) * 100 : 0}%;background:${color}"></i>${slack ? `<i class="is-slack" style="width:${(slack / seg.size) * 100}%"></i>` : ''}</span>
+      <span class="mem-block-foot"><span>${U.num(seg.used)} KB used</span><span>${slack ? `${U.num(slack)} KB slack` : mode === 'dynamic' ? 'Split · no slack' : 'No slack'}</span></span>
+    </button>`;
+  }
+
+  function memoryAxisHTML(mem) {
+    return `<div class="mem-axis" aria-hidden="true">
+      ${mem.segs.map(seg => `<span style="flex:${seg.size}"><b>${U.num(seg.start)}</b></span>`).join('')}
+      <span class="mem-axis-end"><b>${U.num(mem.total)} KB</b></span>
+    </div>`;
+  }
+
+  function memoryInspectorHTML(mem, p, txn, focusPid, strategy, mode) {
+    if (!p) return '';
+    const active = focusPid === p.pid;
+    const color = U.colorFor(p.pid);
+    const requestRange = p.ok ? `${U.num(p.start)} → ${U.num(p.start + p.size)} KB` : 'Unmapped';
+    const blockRange = p.ok ? `${U.num(p.start)} → ${U.num(p.start + p.blockSize)} KB` : '—';
+    const usage = p.ok && p.blockSize ? p.size / p.blockSize : 0;
+    const ruleFragment = {
+      first: 'the first free block that can hold the request',
+      best: 'the smallest free block that can hold the request',
+      worst: 'the largest free block available'
+    }[strategy] || 'a suitable free block';
+    const remainder = p.candidates && p.candidates.find(c => c.label === p.block)
+      ? p.candidates.find(c => c.label === p.block).size - p.size
+      : p.blockSize - p.size;
+    const rule = p.ok
+      ? mode === 'dynamic'
+        ? `${strategyLabel(strategy)} selected ${p.block} as ${ruleFragment}. The block splits into ${U.num(p.size)} KB allocated${remainder ? ` and ${U.num(remainder)} KB free` : ' with no free remainder'}.`
+        : `${strategyLabel(strategy)} selected ${p.block} as ${ruleFragment}. The unused ${U.num(p.waste)} KB stays inside the block as internal slack.`
+      : `No free block can hold ${U.num(p.size)} KB. The largest free segment is ${U.num(mem.largestHole)} KB; total free capacity is ${U.num(mem.totalFree)} KB.`;
+
+    return `<div class="mem-inspect" data-mem-detail="${p.pid}" ${active ? '' : 'hidden'}>
+      <div class="mem-inspect-head">
+        <span class="mem-inspect-mark" style="--mem:${color}"></span>
+        <span class="mem-inspect-title"><b>${p.pid} · ${U.esc(txn ? txn.name : p.pid)}</b><small>${txn ? `${txn.channel} · priority ${txn.priority}` : 'Transaction record'}</small></span>
+        ${badge(p.ok ? 'Mapped' : 'Awaiting memory', p.ok ? 'good' : 'warn', true)}
+      </div>
+      <div class="mem-inspect-metrics">
+        <span><small>Request</small><b>${U.num(p.size)} KB</b></span>
+        <span><small>Block size</small><b>${p.ok ? `${U.num(p.blockSize)} KB` : '—'}</b></span>
+        <span><small>Internal slack</small><b>${p.ok ? `${U.num(p.waste)} KB` : '—'}</b></span>
+        <span><small>Utilization</small><b>${p.ok ? U.pct(usage) : '—'}</b></span>
+      </div>
+      <div class="mem-address-pair">
+        <span><small class="mini-label">Request range</small><b>${requestRange}</b></span>
+        <span><small class="mini-label">Block range</small><b>${blockRange}</b></span>
+      </div>
+      <div class="mem-inspect-track" aria-hidden="true">
+        <i style="width:${usage * 100}%;background:${color}"></i>
+        <i class="is-slack" style="width:${Math.max(0, 100 - usage * 100)}%"></i>
+      </div>
+      <p class="mem-inspect-rule">${rule}</p>
+    </div>`;
+  }
+
+  function memoryTraceHTML(p, index, txnMap, mode, strategy) {
+    const txn = txnMap[p.pid] || { id: p.pid, name: p.pid };
+    const color = U.colorFor(p.pid);
+    const candidates = p.candidates || [];
+    return `<div class="trace-row ${p.ok ? '' : 'is-waiting'}">
+      <span class="trace-index">${String(index + 1).padStart(2, '0')}</span>
+      <span class="trace-txn">
+        <i style="--mem:${color}"></i>
+        <span><b>${U.esc(txn.name)}</b><small>${p.pid} · ${U.num(p.size)} KB</small></span>
+      </span>
+      <span class="trace-scan">
+        <span class="mini-label">Candidate blocks</span>
+        <span class="trace-chips">${candidates.map(c => {
+          const selected = p.block === c.label;
+          const state = !c.free ? 'used' : c.fits ? 'fits' : 'small';
+          const holder = c.holder ? ` · held by ${c.holder}` : '';
+          return `<span class="trace-chip is-${state} ${selected ? 'is-selected' : ''}" title="${c.label} · ${c.size} KB${c.free ? (c.fits ? ' · fits' : ' · too small') : holder}"><b>${c.label}</b><span>${U.num(c.size)}K</span><i>${state === 'used' ? c.holder : state}</i></span>`;
+        }).join('')}</span>
+      </span>
+      <span class="trace-out">
+        ${p.ok
+          ? `<b>${p.block} · ${U.num(p.start)}–${U.num(p.start + p.size)} KB</b><small>${p.waste ? `${U.num(p.waste)} KB internal slack` : mode === 'dynamic' ? 'Split · no internal slack' : 'Exact fit'}</small>`
+          : `<b class="warn-text">No block large enough</b><small>${U.num(p.size)} KB request · largest free ${U.num(candidates.reduce((m, c) => c.free ? Math.max(m, c.size) : m, 0))} KB</small>`}
+      </span>
+    </div>`;
+  }
 
   function strategyLabel(key) {
     return { first: 'First fit', best: 'Best fit', worst: 'Worst fit' }[key] || key;
@@ -1262,34 +1413,43 @@
     }).join('');
     return `<button class="strategy-card ${selected ? 'is-active' : ''}" type="button" data-strategy="${result.strategy}" aria-pressed="${selected}">
       <span class="strategy-head"><span class="strategy-name">${strategyLabel(result.strategy)}${selected ? badge('Active', 'good', true) : `<span class="strategy-switch">Use ${icon('arrowRight', 13)}</span>`}</span></span>
+      <span class="strategy-rule">${memoryRule(result.strategy)}</span>
       <span class="strategy-bar">${bar}</span>
       <span class="strategy-stats">
         <span><b>${placed}/${a.txns.length}</b><small>mapped</small></span>
-        <span><b>${U.num(result.internal)}K</b><small>slack</small></span>
+        <span><b>${U.num(result.internal)}K</b><small>internal slack</small></span>
         <span><b>${U.num(result.totalFree)}K</b><small>free</small></span>
       </span>
-      <span class="strategy-meta">${result.unallocated.length ? `<em>${result.unallocated.join(', ')} waiting</em>` : result.externalFrag ? '<em>External fragmentation</em>' : `${result.holes} free segments`}</span>
+      <span class="strategy-meta">${result.unallocated.length ? `<em>${result.unallocated.join(', ')} waiting</em>` : result.externalFrag ? '<em>External fragmentation</em>' : `${result.holes} free segment${result.holes === 1 ? '' : 's'}`}</span>
     </button>`;
   }
 
-  function memoryRackHTML(mem) {
+  function memoryRackHTML(mem, focusPid) {
     const total = mem.total || 1;
-    return `<div class="memory-rack">${mem.segs.map(seg => {
+    return `<div class="memory-rack" role="group" aria-label="Memory address map">${mem.segs.map(seg => {
       const width = (seg.size / total) * 100;
-      const tiny = width < 3.5;
+      const narrow = width < 8;
+      const tiny = width < 4.5;
+      const end = seg.start + seg.size;
       if (seg.pid === null) {
-        return `<div class="mem-rack-seg is-free ${tiny ? 'is-tiny' : ''}" style="flex:${seg.size}" title="${seg.label} · ${seg.size}K free">
-          ${tiny ? '' : `<span class="mem-label">${seg.label}</span><span class="mem-detail">${seg.size}K free</span>`}
+        return `<div class="mem-rack-seg is-free ${narrow ? 'is-narrow' : ''} ${tiny ? 'is-tiny' : ''}" style="flex:${seg.size}" title="${seg.label} · ${seg.start}–${end} KB · free">
+          <span class="mem-seg-head"><b>${seg.label}</b>${narrow ? '' : `<span>${seg.start}K</span>`}</span>
+          <span class="mem-rack-body"><span class="mem-free-copy">${tiny ? '' : `<b>Free</b><span>${U.num(seg.size)}K</span>`}</span></span>
         </div>`;
       }
       const slack = seg.size - seg.used;
       const color = U.colorFor(seg.pid);
-      return `<div class="mem-rack-seg is-allocated ${tiny ? 'is-tiny' : ''}" style="flex:${seg.size};--mem:${color}" title="${seg.label} · ${seg.pid} · ${seg.used}K used${slack ? ' · ' + slack + 'K slack' : ''}">
-        <div class="mem-used" style="flex:${seg.used}">
-          ${tiny ? '' : `<span class="mem-label">${seg.label} · ${seg.pid}</span><span class="mem-detail">${seg.used}K</span>`}
-        </div>
-        ${slack ? `<div class="mem-slack" style="flex:${slack}">${width < 8 ? '' : `<span>${slack}K slack</span>`}</div>` : ''}
-      </div>`;
+      const selected = focusPid === seg.pid;
+      return `<button class="mem-rack-seg is-allocated ${narrow ? 'is-narrow' : ''} ${tiny ? 'is-tiny' : ''} ${selected ? 'is-focused' : ''}" type="button" data-mem-focus="${seg.pid}" aria-pressed="${selected}" style="flex:${seg.size};--mem:${color}" title="${seg.label} · ${seg.start}–${end} KB · ${seg.pid} · ${seg.used}K used${slack ? ' · ' + slack + 'K slack' : ''}">
+        <span class="mem-seg-head"><b>${seg.label}</b>${narrow ? '' : `<span>${seg.start}K</span>`}</span>
+        <span class="mem-rack-body">
+          <span class="mem-used" style="flex:${seg.used}">
+            <span class="mem-label">${seg.pid}</span>
+            ${tiny ? '' : `<span class="mem-detail">${U.num(seg.used)}K</span>`}
+          </span>
+          ${slack ? `<span class="mem-slack" style="flex:${slack}">${width < 7 ? '' : `<span>${U.num(slack)}K<br>slack</span>`}</span>` : ''}
+        </span>
+      </button>`;
     }).join('')}</div>`;
   }
 
